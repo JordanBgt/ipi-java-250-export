@@ -212,11 +212,7 @@ public class ExportController {
                 cellTotalFont.setColor(IndexedColors.RED.getIndex());
 
                 Row rowFactureSheet = factureSheet.createRow(i);
-                Cell cellTotalLibelle = rowFactureSheet.createCell(0);
-                cellTotalLibelle.setCellValue("Total : ");
-                cellTotalLibelle.setCellStyle(cellTotalStyle);
-
-                Cell cellTotal = rowFactureSheet.createCell(1);
+                Cell cellTotal = rowFactureSheet.createCell(3);
                 cellTotal.setCellValue(facture.getTotal());
                 cellTotal.setCellStyle(cellTotalStyle);
                 cellTotalStyle.setFont(cellTotalFont);
