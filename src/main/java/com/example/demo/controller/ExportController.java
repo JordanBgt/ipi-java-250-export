@@ -1,8 +1,15 @@
 package com.example.demo.controller;
 
 import com.example.demo.entity.Client;
+import com.example.demo.entity.Facture;
+import com.example.demo.entity.LigneFacture;
+import com.example.demo.repository.FactureRepository;
 import com.example.demo.service.ClientService;
+import com.example.demo.service.FactureService;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -19,6 +26,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Controlleur pour réaliser les exports.
@@ -29,6 +37,9 @@ public class ExportController {
 
     @Autowired
     private ClientService clientService;
+
+    @Autowired
+    private FactureRepository factureRepository;
 
 
     @GetMapping("/clients/csv")
@@ -110,22 +121,109 @@ public class ExportController {
         response.setHeader("Content-Disposition", "attachment; filename=\"factures.xlsx\"");
 
         Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Factures");
 
-        Row headerRow = sheet.createRow(0);
+        List<Client> allClients = clientService.findAllClients();
 
-        Cell cellHeaderId = headerRow.createCell(0);
-        cellHeaderId.setCellValue("Id");
+        // Pour chaque client, on créer un onglet
+        for (Client client : allClients) {
 
-        int i = 1;
-        //for (Client client : allClients) {
-        //   Row row = sheet.createRow(i);
+            Sheet clientSheet = workbook.createSheet(client.getNom());
+            Row rowClientSheet = clientSheet.createRow(0);
+            Cell cellPrenom = rowClientSheet.createCell(1);
+            cellPrenom.setCellValue(client.getPrenom());
 
-        // i++;
-        //}
+            Cell cellNom = rowClientSheet.createCell(2);
+            cellNom.setCellValue(client.getNom());
+
+            List<Facture> factures = factureRepository.findByClient(client);
+
+            // Pour chaque facture, on créer un onglet
+            for(Facture facture : factures){
+                Sheet factureSheet = workbook.createSheet("Facture "+ facture.getId());
+
+                int i = 1;
+
+                // On créer un tableau pour la facture
+                Set<LigneFacture> lignesFacture = facture.getLigneFactures();
+                Row tableHeader = factureSheet.createRow(0);
+                CellStyle tableHeaderStyle = workbook.createCellStyle();
+                XSSFFont tableHeaderFont = ((XSSFWorkbook) workbook).createFont();
+                tableHeaderFont.setBold(true);
+                tableHeaderStyle.setBorderTop(BorderStyle.MEDIUM);
+                tableHeaderStyle.setBorderRight(BorderStyle.MEDIUM);
+                tableHeaderStyle.setBorderLeft(BorderStyle.MEDIUM);
+                tableHeaderStyle.setBorderBottom(BorderStyle.MEDIUM);
+                tableHeaderStyle.setFont(tableHeaderFont);
+
+                Cell libelleNom = tableHeader.createCell(0);
+                libelleNom.setCellValue("Nom article");
+                libelleNom.setCellStyle(tableHeaderStyle);
+                Cell libelleQuantite = tableHeader.createCell(1);
+                libelleQuantite.setCellValue("Quantité");
+                libelleQuantite.setCellStyle(tableHeaderStyle);
+                Cell libellePrixUnitaire = tableHeader.createCell(2);
+                libellePrixUnitaire.setCellValue("Prix unitaire");
+                libellePrixUnitaire.setCellStyle(tableHeaderStyle);
+                Cell libellePrixLigne = tableHeader.createCell(3);
+                libellePrixLigne.setCellValue("Prix ligne");
+                libellePrixLigne.setCellStyle(tableHeaderStyle);
+
+                CellStyle tableStyle = workbook.createCellStyle();
+                tableStyle.setBorderBottom(BorderStyle.THIN);
+                tableStyle.setBorderTop(BorderStyle.THIN);
+                tableStyle.setBorderLeft(BorderStyle.THIN);
+                tableStyle.setBorderRight(BorderStyle.THIN);
+
+                // Pour chaque ligne de facture, on remplit une ligne du tableau
+                for(LigneFacture ligneFacture : lignesFacture) {
+
+                    Row rowFactureSheet = factureSheet.createRow(i);
+
+
+                    Cell cellNomArticle = rowFactureSheet.createCell(0);
+                    cellNomArticle.setCellValue(ligneFacture.getArticle().getLibelle());
+                    cellNomArticle.setCellStyle(tableStyle);
+
+                    Cell cellQuantite = rowFactureSheet.createCell(1);
+                    cellQuantite.setCellValue(ligneFacture.getQuantite());
+                    cellQuantite.setCellStyle(tableStyle);
+
+                    Cell cellPrixUnitaire = rowFactureSheet.createCell(2);
+                    cellPrixUnitaire.setCellValue(ligneFacture.getArticle().getPrix());
+                    cellPrixUnitaire.setCellStyle(tableStyle);
+
+                    Cell cellPrixLigne = rowFactureSheet.createCell(3);
+                    cellPrixLigne.setCellValue(ligneFacture.getArticle().getPrix() * ligneFacture.getQuantite());
+                    cellPrixLigne.setCellStyle(tableStyle);
+                    i++;
+                }
+
+                CellStyle cellTotalStyle = workbook.createCellStyle();
+                cellTotalStyle.setBorderBottom(BorderStyle.MEDIUM);
+                cellTotalStyle.setBottomBorderColor(IndexedColors.RED.getIndex());
+                cellTotalStyle.setBorderLeft(BorderStyle.MEDIUM);
+                cellTotalStyle.setLeftBorderColor(IndexedColors.RED.getIndex());
+                cellTotalStyle.setBorderRight(BorderStyle.MEDIUM);
+                cellTotalStyle.setRightBorderColor(IndexedColors.RED.getIndex());
+                cellTotalStyle.setBorderTop(BorderStyle.MEDIUM);
+                cellTotalStyle.setTopBorderColor(IndexedColors.RED.getIndex());
+                XSSFFont cellTotalFont = ((XSSFWorkbook) workbook).createFont();
+                cellTotalFont.setBold(true);
+                cellTotalFont.setColor(IndexedColors.RED.getIndex());
+
+                Row rowFactureSheet = factureSheet.createRow(i);
+                Cell cellTotalLibelle = rowFactureSheet.createCell(0);
+                cellTotalLibelle.setCellValue("Total : ");
+                cellTotalLibelle.setCellStyle(cellTotalStyle);
+
+                Cell cellTotal = rowFactureSheet.createCell(1);
+                cellTotal.setCellValue(facture.getTotal());
+                cellTotal.setCellStyle(cellTotalStyle);
+                cellTotalStyle.setFont(cellTotalFont);
+            }
+        }
 
         workbook.write(response.getOutputStream());
         workbook.close();
-
     }
 }
